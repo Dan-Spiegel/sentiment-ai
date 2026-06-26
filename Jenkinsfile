@@ -49,6 +49,55 @@ pipeline {
                 failure { echo 'Tests échoués ou couverture insuffisante.' }
             }
         }
+        stage('SonarQube Analysis') {
+            environment {
+                SONARQUBE_TOKEN = credentials('sonar-token')
+            }
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        docker run --rm \
+                            --network cicd-network \
+                            --volumes-from jenkins \
+                            -w "$WORKSPACE" \
+                            -e SONAR_HOST_URL="$SONAR_HOST_URL" \
+                            -e SONAR_TOKEN="$SONARQUBE_TOKEN" \
+                            sonarsource/sonar-scanner-cli:latest \
+                            sonar-scanner \
+                            -Dsonar.projectKey=sentiment-ai \
+                            -Dsonar.projectName=SentimentAI \
+                            -Dsonar.sources=src \
+                            -Dsonar.python.version=3.11 \
+                            -Dsonar.python.coverage.reportPaths=coverage.xml \
+                            -Dsonar.sourceEncoding=UTF-8
+                    '''
+                }
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        stage('Security Scan') {
+            steps {
+                sh """
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        -v trivy-cache:/root/.cache/trivy \
+                        aquasec/trivy:latest image \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 1 \
+                        --format table \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                """
+            }
+            post {
+                failure { echo 'Vulnérabilités CRITICAL ou HIGH détectées !' }
+            }
+        }
         stage('Push') {
             when { branch 'main' }
             steps {
@@ -65,6 +114,15 @@ pipeline {
                         docker push ${REGISTRY}/${IMAGE_NAME}:latest
                     """
                 }
+            }
+        }
+        stage('Deploy Staging') {
+            when { branch 'main' }
+            steps {
+                sh '''
+                    docker compose -f docker-compose.yml -p staging down 2>/dev/null || true
+                    docker compose -f docker-compose.yml -p staging up -d
+                '''
             }
         }
     }
