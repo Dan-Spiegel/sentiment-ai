@@ -43,7 +43,7 @@ pipeline {
                 --volumes-from jenkins \
                 -w $WORKSPACE \
                 python:3.12-slim \
-                sh -c "pip install flake8 -q && flake8 src/ --max-line-length=100"
+                sh -c "pip install -q flake8 && flake8 src --max-line-length=100"
 
                 '''
 
