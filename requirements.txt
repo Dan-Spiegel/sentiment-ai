@@ -6,4 +6,3 @@ pydantic==2.6.0
 httpx==0.26.0
 pytest==8.3.5
 pytest-cov==6.1.0
-EOF
