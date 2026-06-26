@@ -117,24 +117,25 @@ pipeline {
                 }
             }
         }
+        stage('IaC Apply') {
+            when { branch 'main' }
+            steps {
+                dir('infra') {
+                    sh 'terraform init -input=false'
+                    sh """
+                        terraform apply -auto-approve \
+                            -var='image_tag=${IMAGE_TAG}'
+                    """
+                }
+            }
+        }
         stage('Deploy Staging') {
             when { branch 'main' }
             steps {
-                sh '''
-                    docker compose -f docker-compose.yml -p staging down 2>/dev/null || true
-                    docker compose -f docker-compose.yml -p staging up -d
-                '''
+                sh 'curl -f http://localhost:8001/health || exit 1'
             }
         }
-    }
-    post {
-        always  { sh 'docker compose down -v 2>/dev/null || true' }
-        success { echo "Pipeline réussi" }
-        failure { echo "Pipeline échoué" }
-    }
-}
-
-stage('Smoke Test') {
+        stage('Smoke Test') {
             when { branch 'main' }
             steps {
                 sh '''
@@ -161,3 +162,10 @@ stage('Smoke Test') {
                 }
             }
         }
+    }
+    post {
+        always  { sh 'docker compose down -v 2>/dev/null || true' }
+        success { echo "Pipeline réussi" }
+        failure { echo "Pipeline échoué" }
+    }
+}
