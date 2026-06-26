@@ -1,11 +1,11 @@
 class SentimentModel:
     def __init__(self):
-        print("[SentimentModel] Modèle chargé")
+        print("[SentimentModel] Modele charge")
 
     def predict(self, text: str) -> dict:
         text_lower = text.lower()
         positive_words = ["bien", "super", "excellent", "parfait", "bon", "aime", "adore"]
-        negative_words = ["mal", "nul", "horrible", "mauvais", "déteste", "pire"]
+        negative_words = ["mal", "nul", "horrible", "mauvais", "deteste", "pire"]
         pos = sum(1 for w in positive_words if w in text_lower)
         neg = sum(1 for w in negative_words if w in text_lower)
         if pos > neg:
